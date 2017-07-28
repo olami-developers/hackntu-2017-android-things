@@ -78,6 +78,8 @@ public class SpeechInputActivity extends AppCompatActivity {
     private boolean mWaitingLEDCancel = true;
     private boolean mProcessingLEDCancel = true;
     private boolean mPlayingTTSLEDCancel = true;
+    private boolean mEnableKeyDetect = true;
+    private boolean isPlayTTS = false;
 
     private OlamiSpeechRecognizer.RecognizeState mRecognizeState;
 
@@ -139,7 +141,7 @@ public class SpeechInputActivity extends AppCompatActivity {
             // ------------------------------------------------------------------
             // * You can set the length of end time of the VAD in milliseconds
             //   to stop voice recording automatically.
-            mRecognizer.setLengthOfVADEnd(3000);
+            mRecognizer.setLengthOfVADEnd(2000);
             // * You can set the frequency in milliseconds of the recognition
             //   result query, then the recognizer client will query the result
             //   once every milliseconds you set.
@@ -153,7 +155,7 @@ public class SpeechInputActivity extends AppCompatActivity {
             // Initialize volume bar of the input audio.
             voiceVolumeChangeHandler(0);
             // 啟用關鍵字偵測
-            mRecognizer.enableKeywordDetect(true);
+            mRecognizer.enableKeywordDetect(mEnableKeyDetect);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -193,7 +195,7 @@ public class SpeechInputActivity extends AppCompatActivity {
                     || mRecognizeState == OlamiSpeechRecognizer.RecognizeState.WAITING_FOR_DETECT) {
                 try {
                     // * Request to start voice recording and recognition.
-                    mRecognizer.OlamiIsWakeUp();
+                    mRecognizer.OlamiIsWakeUp(true);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -226,7 +228,10 @@ public class SpeechInputActivity extends AppCompatActivity {
         // * Implement override method to get callback when the recognize
         //   process state changes.
         @Override
-        public void onRecognizeStateChange(OlamiSpeechRecognizer.RecognizeState state) {
+        public void onRecognizeStateChange(
+                OlamiSpeechRecognizer.RecognizeState state,
+                boolean isPlayTTS
+        ) {
             String statusStr = getString(R.string.RecognizeState) +" : ";
             String buttonStr = "";
             mRecognizeState = state;
@@ -276,10 +281,12 @@ public class SpeechInputActivity extends AppCompatActivity {
 
                 mTtsPlayer.stop();
 
-                // 播放喚醒後的TTS
-                String[] wakeup_arr = {"在", "又", "是"};
-                int random = (int)(Math.random() * 3);
-                mTtsPlayer.playText(mContext, wakeup_arr[random], mTtsListener, false);
+                if (isPlayTTS) {
+                    // 播放喚醒後的TTS
+                    String[] wakeup_arr = {"在", "又", "是"};
+                    int random = (int) (Math.random() * 3);
+                    mTtsPlayer.playText(mContext, wakeup_arr[random], mTtsListener, false);
+                }
             } else if (state == OlamiSpeechRecognizer.RecognizeState.COMPLETED) {
                 statusStr += getString(R.string.RecognizeState_COMPLETED);
                 Log.i(TAG, statusStr);
@@ -370,17 +377,31 @@ public class SpeechInputActivity extends AppCompatActivity {
         @Override
         public void onException(Exception e) {
             e.printStackTrace();
+            mTtsPlayer.playText(mContext, "歐拉蜜秀豆了，你可以在說一次嗎", mTtsListener, true);
+            mRecognizer.restart();
+
+            while (isPlayTTS) {
+                sleep(300);
+            }
+
+            try {
+                mRecognizer.OlamiIsWakeUp(false);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
         }
     }
 
     private class MyTtsListener implements ITtsListener {
         @Override
         public void onPlayingTTS() {
+            isPlayTTS = true;
             playTTSLEDControl();
         }
 
         @Override
         public void onPlayEnd() {
+            isPlayTTS = false;
             waitingLEDControl();
         }
 
@@ -400,7 +421,7 @@ public class SpeechInputActivity extends AppCompatActivity {
         @Override
         public void onButtonAClick() {
             try {
-                mRecognizer.OlamiIsWakeUp();
+                mRecognizer.OlamiIsWakeUp(true);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -531,6 +552,7 @@ public class SpeechInputActivity extends AppCompatActivity {
                 APIResponseText.setText(getString(R.string.Response) +" :\n"+ APIResponseStr);
             }
         });
+        Log.i(TAG, APIResponseStr);
     }
 
     private void recognizeStateHandler(final String recognizeStatusStr) {
