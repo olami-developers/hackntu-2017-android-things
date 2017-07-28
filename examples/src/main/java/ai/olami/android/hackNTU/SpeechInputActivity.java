@@ -112,7 +112,7 @@ public class SpeechInputActivity extends AppCompatActivity {
         mTtsListener = new MyTtsListener();
         mTtsPlayer = new TtsPlayer();
         mTtsPlayer.create(mContext);
-        mTtsPlayer.setVol(100);
+        mTtsPlayer.setVol(200);
         // 初始化麥克風控制器
         try {
             mMicrophoneArrayControl = MicrophoneArrayControl.create(
