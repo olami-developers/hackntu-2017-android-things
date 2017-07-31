@@ -25,7 +25,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
@@ -34,7 +33,14 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.apache.commons.net.ntp.NTPUDPClient;
+import org.apache.commons.net.ntp.TimeInfo;
+
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import ai.olami.android.IOlamiSpeechRecognizerListener;
 import ai.olami.android.OlamiSpeechRecognizer;
@@ -48,6 +54,7 @@ import ai.olami.core.voice.tts.ITtsListener;
 import ai.olami.core.voice.tts.TtsPlayer;
 import ai.olami.nli.DescObject;
 import ai.olami.nli.NLIResult;
+
 
 public class SpeechInputActivity extends AppCompatActivity {
     public final static String TAG = "SpeechInputActivity";
@@ -110,11 +117,13 @@ public class SpeechInputActivity extends AppCompatActivity {
         super.onResume();
 
         mContext = SpeechInputActivity.this;
+
         // TTSPlayer初始化
         mTtsListener = new MyTtsListener();
         mTtsPlayer = new TtsPlayer();
         mTtsPlayer.create(mContext);
         mTtsPlayer.setVol(200);
+
         // 初始化麥克風控制器
         try {
             mMicrophoneArrayControl = MicrophoneArrayControl.create(
@@ -123,42 +132,70 @@ public class SpeechInputActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        try {
-            APIConfiguration config = new APIConfiguration(
-                    Config.getAppKey(), Config.getAppSecret(), Config.getLocalizeOption());
-            // 初始化OlamiSpeechRecognizer物件
-            try {
-                mRecognizer = OlamiSpeechRecognizer.create(
-                        new SpeechRecognizerListener(),
-                        config,
-                        SpeechInputActivity.this);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            // * Advanced setting example.
-            //   These are also optional steps, so you can skip these
-            //   (or any one of these) to use default setting(s).
-            // ------------------------------------------------------------------
-            // * You can set the length of end time of the VAD in milliseconds
-            //   to stop voice recording automatically.
-            mRecognizer.setLengthOfVADEnd(2000);
-            // * You can set the frequency in milliseconds of the recognition
-            //   result query, then the recognizer client will query the result
-            //   once every milliseconds you set.
-            mRecognizer.setResultQueryFrequency(300);
-            // * You can set audio length in milliseconds to upload, then
-            //   the recognizer client will upload parts of audio once every
-            //   milliseconds you set.
-            mRecognizer.setSpeechUploadLength(300);
-            // ------------------------------------------------------------------
+        new Thread(new Runnable() {
+            public void run() {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
 
-            // Initialize volume bar of the input audio.
-            voiceVolumeChangeHandler(0);
-            // 啟用關鍵字偵測
-            mRecognizer.enableKeywordDetect(mEnableKeyDetect);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+                long returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
+                        .getMessage()
+                        .getTransmitTimeStamp()
+                        .getTime();
+                String NTPServerCurrentYear = sdf.format(new Date(returnNTPTime));
+                String deviceCurrentYear = sdf.format(new Date(System.currentTimeMillis()));
+
+                // 初始化時間，確認裝置已經透過網路自動校正時間
+                while (!deviceCurrentYear.equals(NTPServerCurrentYear)) {
+                    String TTSStr = "時間同步中，請稍後";
+                    mTtsPlayer.playText(mContext, TTSStr, mTtsListener, true);
+
+                    returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
+                            .getMessage()
+                            .getTransmitTimeStamp()
+                            .getTime();
+                    NTPServerCurrentYear = sdf.format(new Date(returnNTPTime));
+                    deviceCurrentYear = sdf.format(new Date(System.currentTimeMillis()));
+                    Log.i(TAG, "NTPServerCurrentYear: "+ NTPServerCurrentYear +", deviceCurrentYear: "+ deviceCurrentYear);
+                    sleep(8000);
+                }
+
+                try {
+                    APIConfiguration config = new APIConfiguration(
+                            Config.getAppKey(), Config.getAppSecret(), Config.getLocalizeOption());
+                    // 初始化OlamiSpeechRecognizer物件
+                    try {
+                        mRecognizer = OlamiSpeechRecognizer.create(
+                                new SpeechRecognizerListener(),
+                                config,
+                                SpeechInputActivity.this);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    // * Advanced setting example.
+                    //   These are also optional steps, so you can skip these
+                    //   (or any one of these) to use default setting(s).
+                    // ------------------------------------------------------------------
+                    // * You can set the length of end time of the VAD in milliseconds
+                    //   to stop voice recording automatically.
+                    mRecognizer.setLengthOfVADEnd(2000);
+                    // * You can set the frequency in milliseconds of the recognition
+                    //   result query, then the recognizer client will query the result
+                    //   once every milliseconds you set.
+                    mRecognizer.setResultQueryFrequency(300);
+                    // * You can set audio length in milliseconds to upload, then
+                    //   the recognizer client will upload parts of audio once every
+                    //   milliseconds you set.
+                    mRecognizer.setSpeechUploadLength(300);
+                    // ------------------------------------------------------------------
+
+                    // Initialize volume bar of the input audio.
+                    voiceVolumeChangeHandler(0);
+                    // 啟用關鍵字偵測
+                    mRecognizer.enableKeywordDetect(mEnableKeyDetect);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     @Override
@@ -182,6 +219,25 @@ public class SpeechInputActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+    }
+
+    private TimeInfo getNTPServerTime(String hostname) {
+        NTPUDPClient timeClient;
+        InetAddress inetAddress;
+        TimeInfo timeInfo = null;
+
+        try {
+            timeClient = new NTPUDPClient();
+            timeClient.setDefaultTimeout(5000);
+            inetAddress = InetAddress.getByName(hostname);
+            timeInfo = timeClient.getTime(inetAddress);
+        } catch (UnknownHostException uhe) {
+            uhe.printStackTrace();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+
+        return timeInfo;
     }
 
     protected class recordButtonListener implements View.OnClickListener {

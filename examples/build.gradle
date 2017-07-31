@@ -52,6 +52,8 @@ dependencies {
     compile project(':olami-tts-player-1.0.0-beta')
     compile 'ai.olami:olami-java-client:1.0.0'
 
+    compile group: 'commons-net', name: 'commons-net', version: '3.3'
+
     testCompile 'junit:junit:4.12'
 }
 
