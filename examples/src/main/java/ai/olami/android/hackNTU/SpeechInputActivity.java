@@ -145,7 +145,7 @@ public class SpeechInputActivity extends AppCompatActivity {
 
                 // 初始化時間，確認裝置已經透過網路自動校正時間
                 while (!deviceCurrentYear.equals(NTPServerCurrentYear)) {
-                    String TTSStr = "時間同步中，請稍後";
+                    String TTSStr = "網路連線中，請稍後";
                     mTtsPlayer.playText(mContext, TTSStr, mTtsListener, true);
 
                     returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
@@ -435,16 +435,6 @@ public class SpeechInputActivity extends AppCompatActivity {
             e.printStackTrace();
             mTtsPlayer.playText(mContext, "歐拉蜜秀豆了，你可以在說一次嗎", mTtsListener, true);
             mRecognizer.restart();
-
-            while (isPlayTTS) {
-                sleep(300);
-            }
-
-            try {
-                mRecognizer.OlamiIsWakeUp(false);
-            } catch (InterruptedException ex) {
-                ex.printStackTrace();
-            }
         }
     }
 
