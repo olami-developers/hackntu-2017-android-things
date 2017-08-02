@@ -388,9 +388,13 @@ public class SpeechInputActivity extends AppCompatActivity {
 
                 APIResponseData apiResponseData = response.getData();
                 NLIResult nliResults[] = apiResponseData.getNLIResults();
-                for (int i = 0; i < nliResults.length; i++) {
-                    DescObject nliDescObj = nliResults[i].getDescObject();
-                    mTtsPlayer.playText(mContext, nliDescObj.getReplyAnswer(), mTtsListener, true);
+                if (nliResults == null) {
+                    mTtsPlayer.playText(mContext, "你一個字都沒說呀，你可以在說一次嗎", mTtsListener, true);
+                } else {
+                    for (int i = 0; i < nliResults.length; i++) {
+                            DescObject nliDescObj = nliResults[i].getDescObject();
+                            mTtsPlayer.playText(mContext, nliDescObj.getReplyAnswer(), mTtsListener, true);
+                    }
                 }
             } else {
                 // Recognition has not yet been completed.
