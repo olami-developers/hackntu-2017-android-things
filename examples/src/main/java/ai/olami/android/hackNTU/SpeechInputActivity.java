@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 import ai.olami.android.IOlamiSpeechRecognizerListener;
@@ -52,6 +53,7 @@ import ai.olami.cloudService.APIResponseData;
 import ai.olami.cloudService.SpeechResult;
 import ai.olami.core.voice.tts.ITtsListener;
 import ai.olami.core.voice.tts.TtsPlayer;
+import ai.olami.ids.BaikeData;
 import ai.olami.nli.DescObject;
 import ai.olami.nli.NLIResult;
 
@@ -392,8 +394,19 @@ public class SpeechInputActivity extends AppCompatActivity {
                     mTtsPlayer.playText(mContext, "你一個字都沒說呀，你可以在說一次嗎", mTtsListener, true);
                 } else {
                     for (int i = 0; i < nliResults.length; i++) {
+                        if (nliResults[i].hasDataObjects()) {
+                            // 相關IDS模組回傳的資料格式請參閱 https://tw.olami.ai/wiki/?mp=nli&content=nli_ids_result.html說明
+                            // 我們提供IDS各模組回傳值相關方法，操作請參閱 GitHub olami-developers/olami-java-client-sdk 中
+                            // dump-nli-results-example 專案的 DumpIDSDataExample.java 檔案中範例
+                            // 網址：https://github.com/olami-developers/olami-java-client-sdk/blob/master/examples/dump-nli-results-example/src/main/java/ai/olami/example/DumpIDSDataExample.java
+                            ArrayList<BaikeData> wikiData = nliResults[i].getDataObjects();
+                            for (int x = 0; x < wikiData.size(); x++) {
+                                mTtsPlayer.playText(mContext, wikiData.get(x).getDescription(), mTtsListener, true);
+                            }
+                        } else if (nliResults[i].hasDescObject()) {
                             DescObject nliDescObj = nliResults[i].getDescObject();
                             mTtsPlayer.playText(mContext, nliDescObj.getReplyAnswer(), mTtsListener, true);
+                        }
                     }
                 }
             } else {
