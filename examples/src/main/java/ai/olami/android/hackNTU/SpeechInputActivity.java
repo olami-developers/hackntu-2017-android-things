@@ -70,6 +70,7 @@ public class SpeechInputActivity extends AppCompatActivity {
     ITtsListener mTtsListener = null;
     TtsPlayer mTtsPlayer = null;
     MicrophoneArrayControl mMicrophoneArrayControl = null;
+    MicrophoneArrayLEDControlHelper mMicrophoneArrayLEDControlHelper = null;
 
     private final int VOLUME_BAR_MAX_VALUE = 40;
     private final int VOLUME_BAR_MAX_ITEM = 20;
@@ -84,11 +85,8 @@ public class SpeechInputActivity extends AppCompatActivity {
     private TextView APIResponseText;
     private TextView recognizeStatusText;
 
-    private boolean mWaitingLEDCancel = true;
-    private boolean mProcessingLEDCancel = true;
-    private boolean mPlayingTTSLEDCancel = true;
     private boolean mEnableKeyDetect = true;
-    private boolean isPlayTTS = false;
+    private boolean mIsPlayTTS = false;
 
     private OlamiSpeechRecognizer.RecognizeState mRecognizeState;
 
@@ -134,6 +132,13 @@ public class SpeechInputActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
+        // 初始化麥克風LED Helper
+        mMicrophoneArrayLEDControlHelper = MicrophoneArrayLEDControlHelper.create(
+                mMicrophoneArrayControl);
+
+        mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.INITIALIZING);
+
         new Thread(new Runnable() {
             public void run() {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
@@ -148,7 +153,7 @@ public class SpeechInputActivity extends AppCompatActivity {
                 // 初始化時間，確認裝置已經透過網路自動校正時間
                 while (!deviceCurrentYear.equals(NTPServerCurrentYear)) {
                     String TTSStr = "網路連線中，請稍後";
-                    mTtsPlayer.playText(mContext, TTSStr, mTtsListener, true);
+                    mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
 
                     returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
                             .getMessage()
@@ -326,8 +331,14 @@ public class SpeechInputActivity extends AppCompatActivity {
 
                 recordButtonChangeHandler(true, statusStr);
                 cancelButtonChangeHandler(View.INVISIBLE, "");
+
+                if (!mIsPlayTTS) {
+                    mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                            MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.WAITING);
+                }
             } else if (state == OlamiSpeechRecognizer.RecognizeState.PROCESSING) {
-                processLEDControl();
+                mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                        MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.PROCESSING);
 
                 statusStr += getString(R.string.RecognizeState_PROCESSING) +"...";
                 Log.i(TAG, statusStr);
@@ -458,14 +469,16 @@ public class SpeechInputActivity extends AppCompatActivity {
     private class MyTtsListener implements ITtsListener {
         @Override
         public void onPlayingTTS() {
-            isPlayTTS = true;
-            playTTSLEDControl();
+            mIsPlayTTS = true;
+            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.SPEAKING);
         }
 
         @Override
         public void onPlayEnd() {
-            isPlayTTS = false;
-            waitingLEDControl();
+            mIsPlayTTS = false;
+            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.WAITING);
         }
 
         @Override
@@ -503,57 +516,6 @@ public class SpeechInputActivity extends AppCompatActivity {
         @Override
         public void onButtonDClick() {
             mTtsPlayer.playText(mContext, "我是宇宙無敵最強的歐拉蜜", mTtsListener, true);
-        }
-    }
-
-    private void waitingLEDControl() {
-        mProcessingLEDCancel = true;
-        mPlayingTTSLEDCancel = true;
-        if (mWaitingLEDCancel) {
-            mWaitingLEDCancel = false;
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (!mWaitingLEDCancel) {
-                        mMicrophoneArrayControl.AllLedFade(160, 32, 240, 3000, 30);
-                        sleep(500);
-                    }
-                }
-            }).start();
-        }
-    }
-
-    private void playTTSLEDControl() {
-        mWaitingLEDCancel = true;
-        mProcessingLEDCancel = true;
-        if (mPlayingTTSLEDCancel) {
-            mPlayingTTSLEDCancel = false;
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (!mPlayingTTSLEDCancel) {
-                        mMicrophoneArrayControl.ledRotate(
-                                0, 0, 255, 1500, 10, mMicrophoneArrayControl.COUNTERCLOCKWISE);
-                    }
-                }
-            }).start();
-        }
-    }
-
-    private void processLEDControl() {
-        mWaitingLEDCancel = true;
-        mPlayingTTSLEDCancel = true;
-        if (mProcessingLEDCancel) {
-            mProcessingLEDCancel = false;
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (!mProcessingLEDCancel) {
-                        mMicrophoneArrayControl.ledRotate(
-                                0, 255, 0, 1500, 10, mMicrophoneArrayControl.CLOCKWISE);
-                    }
-                }
-            }).start();
         }
     }
 
