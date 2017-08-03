@@ -402,17 +402,13 @@ public class SpeechInputActivity extends AppCompatActivity {
                 APIResponseData apiResponseData = response.getData();
                 NLIResult nliResults[] = apiResponseData.getNLIResults();
                 if (nliResults == null) {
-                    mTtsPlayer.playText(mContext, "你一個字都沒說呀，你可以在說一次嗎", mTtsListener, true);
+                    mTtsPlayer.playText(mContext, "你一個字都沒說，你可以在說一次嗎", mTtsListener, true);
                 } else {
                     for (int i = 0; i < nliResults.length; i++) {
                         if (nliResults[i].hasDataObjects()) {
-                            // 相關IDS模組回傳的資料格式請參閱 https://tw.olami.ai/wiki/?mp=nli&content=nli_ids_result.html說明
-                            // 我們提供IDS各模組回傳值相關方法，操作請參閱 GitHub olami-developers/olami-java-client-sdk 中
-                            // dump-nli-results-example 專案的 DumpIDSDataExample.java 檔案中範例
-                            // 網址：https://github.com/olami-developers/olami-java-client-sdk/blob/master/examples/dump-nli-results-example/src/main/java/ai/olami/example/DumpIDSDataExample.java
-                            ArrayList<BaikeData> wikiData = nliResults[i].getDataObjects();
-                            for (int x = 0; x < wikiData.size(); x++) {
-                                mTtsPlayer.playText(mContext, wikiData.get(x).getDescription(), mTtsListener, true);
+                            String content = DumpIDSDataExample.dumpIDSData(nliResults[i]);
+                            if (content != null) {
+                                mTtsPlayer.playText(mContext, content, mTtsListener, true);
                             }
                         } else if (nliResults[i].hasDescObject()) {
                             DescObject nliDescObj = nliResults[i].getDescObject();
