@@ -496,10 +496,18 @@ public class SpeechInputActivity extends AppCompatActivity {
 
         @Override
         public void onButtonAClick() {
-            try {
-                mRecognizer.OlamiIsWakeUp(true);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            mRecognizeState = mRecognizer.getRecognizeState();
+
+            // Check to see if we should start recording or stop manually.
+            if (mRecognizeState == OlamiSpeechRecognizer.RecognizeState.STOPPED
+                    || mRecognizeState == OlamiSpeechRecognizer.RecognizeState.WAITING_FOR_DETECT) {
+                try {
+                    // * Request to start voice recording and recognition.
+                    mRecognizer.OlamiIsWakeUp(true);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                recordButton.setEnabled(false);
             }
         }
 
