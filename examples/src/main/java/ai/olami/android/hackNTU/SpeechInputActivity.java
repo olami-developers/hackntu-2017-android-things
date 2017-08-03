@@ -61,9 +61,6 @@ import ai.olami.nli.NLIResult;
 public class SpeechInputActivity extends AppCompatActivity {
     public final static String TAG = "SpeechInputActivity";
 
-    private static final int REQUEST_EXTERNAL_PERMISSION = 1;
-    private static final int REQUEST_MICROPHONE = 3;
-
     Context mContext = null;
 
     OlamiSpeechRecognizer mRecognizer = null;
@@ -600,49 +597,6 @@ public class SpeechInputActivity extends AppCompatActivity {
                         Toast.LENGTH_LONG).show();
             }
         });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case REQUEST_MICROPHONE:
-                for (int i = 0; i < permissions.length; i++) {
-                    String permission = permissions[i];
-                    int grantResult = grantResults[i];
-                    if (permission.equals(Manifest.permission.RECORD_AUDIO)) {
-                        if(grantResult == PackageManager.PERMISSION_GRANTED) {
-                            Toast.makeText(
-                                    this,
-                                    getString(R.string.GetMicrophonePermission),
-                                    Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(this,
-                                    getString(R.string.GetMicrophonePermissionDenied),
-                                    Toast.LENGTH_LONG).show();
-                        }
-                    }
-                }
-                break;
-            case REQUEST_EXTERNAL_PERMISSION:
-                for (int i = 0; i < permissions.length; i++) {
-                    String permission = permissions[i];
-                    int grantResult = grantResults[i];
-                    if (permission.equals(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                        if(grantResult == PackageManager.PERMISSION_GRANTED) {
-                            Toast.makeText(
-                                    this,
-                                    getString(R.string.GetWriteStoragePermission),
-                                    Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(this,
-                                    getString(R.string.GetWriteStoragePermissionDenied),
-                                    Toast.LENGTH_LONG).show();
-                        }
-                    }
-                }
-                break;
-        }
     }
 
     private void sleep(int milliseconds) {
