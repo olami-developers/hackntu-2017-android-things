@@ -53,15 +53,15 @@ public class MicrophoneArrayLEDControlHelper {
         public void run() {
             while(!mCancel) {
                 if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.INITIALIZING) {
-                    mMicrophoneArrayControl.AllLedFade(255, 165, 0, 3000, 30);
+                    mMicrophoneArrayControl.AllLedFade(255, 165, 0, 3000, 50);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.WAITING) {
-                    mMicrophoneArrayControl.AllLedFade(160, 32, 240, 3000, 30);
+                    mMicrophoneArrayControl.AllLedFade(160, 32, 240, 3000, 50);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.PROCESSING) {
                     mMicrophoneArrayControl.ledRotate(
-                            0, 255, 0, 1500, 10, mMicrophoneArrayControl.CLOCKWISE);
+                            0, 255, 0, 1500, 50, mMicrophoneArrayControl.CLOCKWISE);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.SPEAKING) {
                     mMicrophoneArrayControl.ledRotate(
-                            0, 0, 255, 1500, 10, mMicrophoneArrayControl.COUNTERCLOCKWISE);
+                            0, 0, 255, 1500, 50, mMicrophoneArrayControl.COUNTERCLOCKWISE);
                 }
             }
         }
