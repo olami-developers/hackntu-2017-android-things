@@ -311,7 +311,19 @@ public class SpeechInputActivity extends AppCompatActivity {
 
                 recordButtonChangeHandler(false, statusStr);
                 cancelButtonChangeHandler(View.INVISIBLE, "");
+
+                new Thread(new Runnable() {
+                    public void run() {
+                        while (!mCancelPlayInitializeTTS) {
+                            String TTSStr = "正在設定歐拉蜜，請稍等";
+                            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+                            sleep(7000);
+                        }
+                    }
+                }).start();
             } else if (state == OlamiSpeechRecognizer.RecognizeState.DETECT_INITIALIZED) {
+                mCancelPlayInitializeTTS = true;
+
                 statusStr += getString(R.string.KeywordDetect_INITIALIZED);
                 Log.i(TAG, statusStr);
                 recognizeStateHandler(statusStr);
