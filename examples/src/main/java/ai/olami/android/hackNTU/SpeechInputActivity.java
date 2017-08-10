@@ -18,11 +18,11 @@
 
 package ai.olami.android.hackNTU;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
@@ -38,9 +38,10 @@ import org.apache.commons.net.ntp.TimeInfo;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 
 import ai.olami.android.IOlamiSpeechRecognizerListener;
@@ -53,7 +54,6 @@ import ai.olami.cloudService.APIResponseData;
 import ai.olami.cloudService.SpeechResult;
 import ai.olami.core.voice.tts.ITtsListener;
 import ai.olami.core.voice.tts.TtsPlayer;
-import ai.olami.ids.BaikeData;
 import ai.olami.nli.DescObject;
 import ai.olami.nli.NLIResult;
 
@@ -84,6 +84,7 @@ public class SpeechInputActivity extends AppCompatActivity {
 
     private boolean mEnableKeyDetect = true;
     private boolean mIsPlayTTS = false;
+    boolean mCancelPlayInitializeTTS = false;
 
     private OlamiSpeechRecognizer.RecognizeState mRecognizeState;
 
@@ -133,36 +134,11 @@ public class SpeechInputActivity extends AppCompatActivity {
         mMicrophoneArrayLEDControlHelper = MicrophoneArrayLEDControlHelper.create(
                 mMicrophoneArrayControl);
 
-        mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
-                MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.INITIALIZING);
-
         new Thread(new Runnable() {
             public void run() {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
-
-                long returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
-                        .getMessage()
-                        .getTransmitTimeStamp()
-                        .getTime();
-                String NTPServerCurrentYear = sdf.format(new Date(returnNTPTime));
-                String deviceCurrentYear = sdf.format(new Date(System.currentTimeMillis()));
-
-                // 初始化時間，確認裝置已經透過網路自動校正時間
-                while (!deviceCurrentYear.equals(NTPServerCurrentYear)) {
-                    String TTSStr = "網路連線中，請稍後";
-                    mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
-
-                    returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
-                            .getMessage()
-                            .getTransmitTimeStamp()
-                            .getTime();
-                    NTPServerCurrentYear = sdf.format(new Date(returnNTPTime));
-                    deviceCurrentYear = sdf.format(new Date(System.currentTimeMillis()));
-                    Log.i(TAG, "NTPServerCurrentYear: "+ NTPServerCurrentYear +", deviceCurrentYear: "+ deviceCurrentYear);
-                    sleep(8000);
-                }
-
                 try {
+                    init();
+
                     APIConfiguration config = new APIConfiguration(
                             Config.getAppKey(), Config.getAppSecret(), Config.getLocalizeOption());
                     // 初始化OlamiSpeechRecognizer物件
@@ -193,6 +169,7 @@ public class SpeechInputActivity extends AppCompatActivity {
 
                     // Initialize volume bar of the input audio.
                     voiceVolumeChangeHandler(0);
+
                     // 啟用關鍵字偵測
                     mRecognizer.enableKeywordDetect(mEnableKeyDetect);
                 } catch (InterruptedException e) {
@@ -225,6 +202,94 @@ public class SpeechInputActivity extends AppCompatActivity {
         }
     }
 
+    // 執行歐拉蜜之前，先確認相關環境，包含網路、時間校正
+    private void init() {
+        int delayTime = 15000;
+
+        Log.i(TAG, "isNetworkConnected(): "+ isNetworkConnected()
+                +", isConnectedToServer(): "+ isConnectedToServer("http://www.baidu.com/", 3000));
+        // 確認裝置是否已經連線至網路
+        while (!isNetworkConnected() || !isConnectedToServer("http://www.baidu.com/", 3000)) {
+            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.ERROR);
+
+            String TTSStr = "歐拉蜜無法連接網路，請重新確認網路環境";
+            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+            sleep(delayTime);
+        }
+
+        mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.INITIALIZING);
+
+        // 初始化時間，確認裝置已經透過網路自動校正時間
+        while (!checkDeviceTime()) {
+            String TTSStr = "歐拉蜜正在初始化，請稍後";
+            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+            sleep(delayTime);
+        }
+
+        String url = "";
+        if (Config.getLocalizeOption() == APIConfiguration.LOCALIZE_OPTION_TRADITIONAL_CHINESE) {
+            url = "https://tw.olami.ai/cloudservice/api";
+        } else if (Config.getLocalizeOption() == APIConfiguration.LOCALIZE_OPTION_SIMPLIFIED_CHINESE) {
+            url = "https://cn.olami.ai/cloudservice/api";
+        }
+        // 確認裝置是否可連線至歐拉蜜伺服器
+        while (!isConnectedToServer(url, 5000)) {
+            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.ERROR);
+
+            String TTSStr = "無法連線至歐拉蜜伺服器，請重新確認網路環境";
+            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+            sleep(delayTime);
+        }
+    }
+
+    // 確認是否連線至伺服器
+    private boolean isConnectedToServer(String url, int timeout) {
+        try{
+            URL myUrl = new URL(url);
+            URLConnection connection = myUrl.openConnection();
+            connection.setConnectTimeout(timeout);
+            connection.connect();
+            return true;
+        } catch (Exception e) {
+            // Handle your exceptions
+            return false;
+        }
+    }
+
+    // 確認裝置使否已經連線至網路
+    private boolean isNetworkConnected(){
+        ConnectivityManager cm =
+                (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
+        return isConnected;
+    }
+
+    // 確認裝置時間是否正確
+    private boolean checkDeviceTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
+
+        long returnNTPTime = getNTPServerTime("time.stdtime.gov.tw")
+                .getMessage()
+                .getTransmitTimeStamp()
+                .getTime();
+        String NTPServerCurrentYear = sdf.format(new Date(returnNTPTime));
+        String deviceCurrentYear = sdf.format(new Date(System.currentTimeMillis()));
+        Log.i(TAG, "NTPServerCurrentYear: "+ NTPServerCurrentYear +", deviceCurrentYear: "+ deviceCurrentYear);
+
+        if (deviceCurrentYear.equals(NTPServerCurrentYear)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    //  取得NTP時間
     private TimeInfo getNTPServerTime(String hostname) {
         NTPUDPClient timeClient;
         InetAddress inetAddress;
