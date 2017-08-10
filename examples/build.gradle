@@ -8,10 +8,10 @@ android {
         applicationId "ai.olami.android.sample"
         minSdkVersion 17
         targetSdkVersion 25
-        versionCode 1
-        versionName "20170707"
+        versionCode 2
+        versionName "1.1"
 
-        archivesBaseName = "olami-android-client-examples"
+        archivesBaseName = "Hackntu-2017-android-things"
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
