@@ -11,11 +11,14 @@ public class MicrophoneArrayLEDControlHelper {
 
     private LEDControlRunnable LEDRunnable = null;
 
+    private int MaxLEDBrightness = 50;
+
     public enum MicrophoneArrayLEDState {
         INITIALIZING,
         PROCESSING,
         WAITING,
-        SPEAKING
+        SPEAKING,
+        ERROR
     }
 
     private MicrophoneArrayLEDControlHelper(
@@ -53,15 +56,17 @@ public class MicrophoneArrayLEDControlHelper {
         public void run() {
             while(!mCancel) {
                 if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.INITIALIZING) {
-                    mMicrophoneArrayControl.AllLedFade(255, 165, 0, 3000, 50);
+                    mMicrophoneArrayControl.AllLedFade(255, 165, 0, 3000, MaxLEDBrightness);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.WAITING) {
-                    mMicrophoneArrayControl.AllLedFade(160, 32, 240, 3000, 50);
+                    mMicrophoneArrayControl.AllLedFade(160, 32, 240, 3000, MaxLEDBrightness);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.PROCESSING) {
                     mMicrophoneArrayControl.ledRotate(
-                            0, 255, 0, 1500, 50, mMicrophoneArrayControl.CLOCKWISE);
+                            0, 255, 0, 1500, MaxLEDBrightness, mMicrophoneArrayControl.CLOCKWISE);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.SPEAKING) {
                     mMicrophoneArrayControl.ledRotate(
-                            0, 0, 255, 1500, 50, mMicrophoneArrayControl.COUNTERCLOCKWISE);
+                            0, 0, 255, 1500, MaxLEDBrightness, mMicrophoneArrayControl.COUNTERCLOCKWISE);
+                } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.ERROR) {
+                    mMicrophoneArrayControl.AllLedFade(255, 0, 0, 5000, MaxLEDBrightness);
                 }
             }
         }
