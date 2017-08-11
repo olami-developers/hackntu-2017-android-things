@@ -134,10 +134,75 @@ public class SpeechInputActivity extends AppCompatActivity {
         mMicrophoneArrayLEDControlHelper = MicrophoneArrayLEDControlHelper.create(
                 mMicrophoneArrayControl);
 
+        init();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        releaseRecognizer();
+
+        if (mMicrophoneArrayControl != null) {
+            try {
+                mMicrophoneArrayControl.closeUart();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (mTtsPlayer != null) {
+            mTtsPlayer.stop();
+            mTtsPlayer.destroy();
+        }
+    }
+
+    // 執行歐拉蜜之前，先確認相關環境，包含網路、時間校正
+    private void init() {
+        final int delayTime = 15000;
+
         new Thread(new Runnable() {
             public void run() {
                 try {
-                    init();
+                    Log.i(TAG, "isNetworkConnected(): "+ isNetworkConnected()
+                            +", isConnectedToServer(): "+ isConnectedToServer("http://www.baidu.com/", 3000));
+                    // 確認裝置是否已經連線至網路
+                    while (!isNetworkConnected() || !isConnectedToServer("http://www.baidu.com/", 3000)) {
+                        mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                                MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.ERROR);
+
+                        String TTSStr = "歐拉蜜無法連接網路，請重新確認網路環境";
+                        mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+                        sleep(delayTime);
+                    }
+
+                    mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                            MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.INITIALIZING);
+
+                    // 初始化時間，確認裝置已經透過網路自動校正時間
+                    while (!checkDeviceTime()) {
+                        String TTSStr = "歐拉蜜正在初始化，請稍後";
+                        mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+                        sleep(delayTime);
+                    }
+
+                    String url = "";
+                    if (Config.getLocalizeOption() == APIConfiguration
+                            .LOCALIZE_OPTION_TRADITIONAL_CHINESE) {
+                        url = "https://tw.olami.ai/cloudservice/api";
+                    } else if (Config.getLocalizeOption() == APIConfiguration
+                            .LOCALIZE_OPTION_SIMPLIFIED_CHINESE) {
+                        url = "https://cn.olami.ai/cloudservice/api";
+                    }
+                    // 確認裝置是否可連線至歐拉蜜伺服器
+                    while (!isConnectedToServer(url, 5000)) {
+                        mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                                MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.ERROR);
+
+                        String TTSStr = "無法連線至歐拉蜜伺服器，請重新確認網路環境";
+                        mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
+                        sleep(delayTime);
+                    }
 
                     APIConfiguration config = new APIConfiguration(
                             Config.getAppKey(), Config.getAppSecret(), Config.getLocalizeOption());
@@ -156,7 +221,7 @@ public class SpeechInputActivity extends AppCompatActivity {
                     // ------------------------------------------------------------------
                     // * You can set the length of end time of the VAD in milliseconds
                     //   to stop voice recording automatically.
-                    mRecognizer.setLengthOfVADEnd(2000);
+                    mRecognizer.setLengthOfVADEnd(2500);
                     // * You can set the frequency in milliseconds of the recognition
                     //   result query, then the recognizer client will query the result
                     //   once every milliseconds you set.
@@ -171,7 +236,7 @@ public class SpeechInputActivity extends AppCompatActivity {
                     voiceVolumeChangeHandler(0);
 
                     // 啟用關鍵字偵測
-                    mRecognizer.enableKeywordDetect(mEnableKeyDetect);
+                    mRecognizer.enableKeywordDetect();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -179,69 +244,11 @@ public class SpeechInputActivity extends AppCompatActivity {
         }).start();
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-
+    private void releaseRecognizer() {
         if (mRecognizer != null) {
             // * Release the recognizer when program stops or exits.
             mRecognizer.release();
-        }
-
-        if (mTtsPlayer != null) {
-            mTtsPlayer.stop();
-            mTtsPlayer.destroy();
-        }
-
-        if (mMicrophoneArrayControl != null) {
-            try {
-                mMicrophoneArrayControl.closeUart();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    // 執行歐拉蜜之前，先確認相關環境，包含網路、時間校正
-    private void init() {
-        int delayTime = 15000;
-
-        Log.i(TAG, "isNetworkConnected(): "+ isNetworkConnected()
-                +", isConnectedToServer(): "+ isConnectedToServer("http://www.baidu.com/", 3000));
-        // 確認裝置是否已經連線至網路
-        while (!isNetworkConnected() || !isConnectedToServer("http://www.baidu.com/", 3000)) {
-            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
-                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.ERROR);
-
-            String TTSStr = "歐拉蜜無法連接網路，請重新確認網路環境";
-            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
-            sleep(delayTime);
-        }
-
-        mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
-                MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.INITIALIZING);
-
-        // 初始化時間，確認裝置已經透過網路自動校正時間
-        while (!checkDeviceTime()) {
-            String TTSStr = "歐拉蜜正在初始化，請稍後";
-            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
-            sleep(delayTime);
-        }
-
-        String url = "";
-        if (Config.getLocalizeOption() == APIConfiguration.LOCALIZE_OPTION_TRADITIONAL_CHINESE) {
-            url = "https://tw.olami.ai/cloudservice/api";
-        } else if (Config.getLocalizeOption() == APIConfiguration.LOCALIZE_OPTION_SIMPLIFIED_CHINESE) {
-            url = "https://cn.olami.ai/cloudservice/api";
-        }
-        // 確認裝置是否可連線至歐拉蜜伺服器
-        while (!isConnectedToServer(url, 5000)) {
-            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
-                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.ERROR);
-
-            String TTSStr = "無法連線至歐拉蜜伺服器，請重新確認網路環境";
-            mTtsPlayer.playText(mContext, TTSStr, mTtsListener, false);
-            sleep(delayTime);
+            mRecognizer = null;
         }
     }
 
@@ -386,6 +393,9 @@ public class SpeechInputActivity extends AppCompatActivity {
                         }
                     }
                 }).start();
+
+                mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                        MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.INITIALIZING);
             } else if (state == OlamiSpeechRecognizer.RecognizeState.DETECT_INITIALIZED) {
                 mCancelPlayInitializeTTS = true;
 
@@ -547,8 +557,14 @@ public class SpeechInputActivity extends AppCompatActivity {
         @Override
         public void onPlayEnd() {
             mIsPlayTTS = false;
-            mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
-                    MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.WAITING);
+
+            if (mEnableKeyDetect) {
+                mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                        MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.WAITING);
+            } else {
+                mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                        MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.SLEEPING);
+            }
         }
 
         @Override
@@ -566,34 +582,59 @@ public class SpeechInputActivity extends AppCompatActivity {
 
         @Override
         public void onButtonAClick() {
-            mRecognizeState = mRecognizer.getRecognizeState();
 
-            // Check to see if we should start recording or stop manually.
-            if (mRecognizeState == OlamiSpeechRecognizer.RecognizeState.STOPPED
-                    || mRecognizeState == OlamiSpeechRecognizer.RecognizeState.WAITING_FOR_DETECT) {
-                try {
-                    // * Request to start voice recording and recognition.
-                    mRecognizer.OlamiIsWakeUp(true);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            if (mRecognizer != null) {
+                mRecognizeState = mRecognizer.getRecognizeState();
+
+                // Check to see if we should start recording or stop manually.
+                if (mRecognizeState == OlamiSpeechRecognizer.RecognizeState.STOPPED
+                        || mRecognizeState == OlamiSpeechRecognizer.RecognizeState.WAITING_FOR_DETECT) {
+                    try {
+                        // * Request to start voice recording and recognition.
+                        mRecognizer.OlamiIsWakeUp(true);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    recordButton.setEnabled(false);
                 }
-                recordButton.setEnabled(false);
             }
         }
 
         @Override
         public void onButtonBClick() {
-            mRecognizer.stop();
+            if (mRecognizer != null) {
+                mRecognizer.stop();
+            }
         }
 
         @Override
         public void onButtonCClick() {
-            mRecognizer.cancel();
+            if (mRecognizer != null) {
+                mRecognizer.cancel();
+
+                if (mEnableKeyDetect) {
+                    mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                            MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.WAITING);
+                } else {
+                    mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                            MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.SLEEPING);
+                }
+            }
         }
 
         @Override
         public void onButtonDClick() {
-            mTtsPlayer.playText(mContext, "我是宇宙無敵最強的歐拉蜜", mTtsListener, true);
+            if (mEnableKeyDetect) {
+                mEnableKeyDetect = false;
+                mTtsPlayer.playText(mContext, "歐拉蜜要去睡覺了，擺擺", mTtsListener, false);
+                mMicrophoneArrayLEDControlHelper.changeMicrophoneArrayLEDState(
+                        MicrophoneArrayLEDControlHelper.MicrophoneArrayLEDState.SLEEPING);
+
+                releaseRecognizer();
+            } else {
+                mEnableKeyDetect = true;
+                init();
+            }
         }
     }
 
