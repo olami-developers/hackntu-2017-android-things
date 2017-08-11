@@ -14,6 +14,7 @@ public class MicrophoneArrayLEDControlHelper {
     private int MaxLEDBrightness = 50;
 
     public enum MicrophoneArrayLEDState {
+        SLEEPING,
         INITIALIZING,
         PROCESSING,
         WAITING,
@@ -69,6 +70,8 @@ public class MicrophoneArrayLEDControlHelper {
                             0, 0, 255, 1500, MaxLEDBrightness, mMicrophoneArrayControl.COUNTERCLOCKWISE);
                 } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.ERROR) {
                     mMicrophoneArrayControl.AllLedFade(255, 0, 0, 5000, MaxLEDBrightness);
+                } else if (mMicrophoneArrayLEDState == MicrophoneArrayLEDState.SLEEPING) {
+                    mMicrophoneArrayControl.AllLedFade(0, 255, 255, 5000, MaxLEDBrightness);
                 }
             }
         }
