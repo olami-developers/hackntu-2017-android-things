@@ -37,13 +37,15 @@ public class MicrophoneArrayLEDControlHelper {
     }
 
     public void changeMicrophoneArrayLEDState(MicrophoneArrayLEDState state) {
-        mMicrophoneArrayLEDState = state;
+        if (mMicrophoneArrayLEDState != state) {
+            mMicrophoneArrayLEDState = state;
 
-        if (LEDRunnable != null) {
-            LEDRunnable.terminate();
+            if (LEDRunnable != null) {
+                LEDRunnable.terminate();
+            }
+            LEDRunnable = new LEDControlRunnable();
+            new Thread(LEDRunnable).start();
         }
-        LEDRunnable = new LEDControlRunnable();
-        new Thread(LEDRunnable).start();
     }
 
     private class LEDControlRunnable implements Runnable {
