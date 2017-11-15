@@ -1,1 +1,0 @@
-include ':examples', ':olami-android-client-2.0.0', ':KeywordDetect-1.0.0-beta', ':olami-tts-player-1.0.0-beta'
